@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rz_.market 品牌官方網站</title>
+    <!-- Tailwind CSS & FontAwesome Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK (Compat 模式) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; background-color: #FAF8F5; color: #4A403A; }
+        .bg-custom-pink { background-color: #E8C8C8; }
+        .bg-custom-soft { background-color: #FAF0F0; }
+        .text-custom-pink { color: #A67B7B; }
+        .text-custom-dark { color: #8F6565; }
+        .border-custom-pink { border-color: #E8C8C8; }
+        .btn-main { background-color: #A67B7B; color: #FFFFFF; transition: all 0.2s; }
+        .btn-main:hover { background-color: #8F6565; }
+        .btn-soft { background-color: #FAF0F0; color: #8F6565; }
+        .btn-soft:hover { background-color: #E8C8C8; color: #4A403A; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E8C8C8; border-radius: 4px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen pb-24 selection:bg-[#FAF0F0] selection:text-[#A67B7B]">
+
+    <!-- 頂部跑馬燈公告欄 -->
+    <div id="announcement-bar" class="bg-[#8F6565] text-white text-xs py-2 px-4 text-center tracking-wider font-medium flex items-center justify-center gap-2 shadow-xs">
+        <span id="announcement-text">📣 選購商品加入購物車，填寫姓名與 IG 大帳即刻結帳，自動複製明細並一鍵私訊！</span>
+    </div>
+
+    <!-- 頂部 Navigation -->
+    <header class="sticky top-0 z-40 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-[#E8C8C8]/40 px-4 py-3">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div id="brand-logo-container" class="cursor-pointer" onclick="location.reload()">
+                    <h1 class="text-xl font-extrabold tracking-widest text-[#4A403A]">rz_.market</h1>
+                </div>
+                <span id="cloud-badge" class="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-spinner animate-spin"></i> 雲端連線中
+                </span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <!-- 後台導覽分頁按鈕 -->
+                <button onclick="handleAdminAccess()" class="text-xs text-[#8F6565] bg-[#FAF0F0] border border-[#E8C8C8] px-3 py-1.5 rounded-full font-bold hover:bg-[#E8C8C8] transition flex items-center gap-1">
+                    <i class="fa-solid fa-user-gear"></i> 專屬後台
+                </button>
+                
+                <button onclick="toggleCartModal()" class="relative p-2 text-[#4A403A] hover:text-[#8F6565] transition">
+                    <i class="fa-solid fa-bag-shopping text-xl"></i>
+                    <span id="cart-count" class="absolute top-0 right-0 bg-[#8F6565] text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold shadow-xs">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        
+        <!-- Banner 橫幅區塊 -->
+        <div class="bg-gradient-to-r from-[#F7EBEB] to-[#F3E3E3] rounded-2xl p-6 mb-8 text-center border border-[#E8C8C8]/50 shadow-xs relative overflow-hidden">
+            <h2 class="text-2xl font-bold text-[#4A403A] mb-1">✨ rz_.market Select</h2>
+            <p class="text-xs text-[#8F6565] font-medium tracking-wide">高品質服飾・質感生活選物・即時雲端同步連線</p>
+        </div>
+
+        <!-- 商品展示區塊 -->
+        <div class="mb-4 flex items-center justify-between">
+            <h3 class="font-bold text-[#4A403A] text-sm flex items-center gap-2">
+                <i class="fa-solid fa-sparkles text-[#8F6565]"></i> 熱銷選購商品
+            </h3>
+            <span class="text-xs text-gray-400 font-normal">點擊商品查看詳細與規格</span>
+        </div>
+
+        <div id="product-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="col-span-full py-16 text-center text-gray-400">
+                <i class="fa-solid fa-spinner animate-spin text-3xl mb-3 text-[#8F6565]"></i>
+                <p class="text-xs font-medium">載入商品列表中...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 1. 商品詳情與多規格選擇器 Modal -->
+    <div id="product-detail-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-[#FAF8F5]">
+                <h3 id="modal-product-title" class="font-bold text-[#4A403A] text-sm">商品細節</h3>
+                <button onclick="closeProductModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto space-y-4 custom-scrollbar">
+                <!-- 商品主圖 / 多張輪播 -->
+                <div id="modal-product-images" class="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                    <!-- 動態圖片卡片 -->
+                </div>
+
+                <div>
+                    <div class="flex items-baseline justify-between">
+                        <h2 id="modal-p-name" class="text-lg font-bold text-[#4A403A]"></h2>
+                        <span id="modal-p-price" class="text-lg font-extrabold text-[#8F6565]"></span>
+                    </div>
+                    <p id="modal-p-deposit" class="text-xs text-[#A67B7B] mt-0.5 font-medium"></p>
+                    <p id="modal-p-desc" class="text-xs text-gray-500 mt-2 whitespace-pre-line leading-relaxed"></p>
+                </div>
+
+                <!-- 動態雙層多主題規格區塊 (顏色/尺寸/選項) -->
+                <div id="modal-spec-container" class="space-y-3 pt-2 border-t border-gray-100">
+                    <!-- 動態產生規格選單 -->
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <span class="text-xs font-medium text-gray-600">購買數量</span>
+                    <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-[#FAF8F5]">
+                        <button onclick="adjustQuantity(-1)" class="px-3 py-1 text-gray-600 hover:bg-gray-200">-</button>
+                        <span id="modal-qty" class="px-4 py-1 text-xs font-bold text-[#4A403A]">1</span>
+                        <button onclick="adjustQuantity(1)" class="px-3 py-1 text-gray-600 hover:bg-gray-200">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-gray-100 bg-[#FAF8F5]">
+                <button onclick="confirmAddToCart()" class="w-full btn-main py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-cart-plus"></i> 加入購物車
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 購物車 Modal -->
+    <div id="cart-modal" class="fixed inset-0 bg-black/40 z-50 hidden flex justify-end">
+        <div class="bg-white w-full max-w-md h-full flex flex-col shadow-2xl">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between bg-[#FAF8F5]">
+                <h3 class="font-bold text-[#4A403A] flex items-center gap-2">
+                    <i class="fa-solid fa-bag-shopping text-[#8F6565]"></i> 購物車內容
+                </h3>
+                <button onclick="toggleCartModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                <p class="text-center text-gray-400 text-xs py-10">購物車目前是空的唷 🛍️</p>
+            </div>
+
+            <div class="p-4 border-t border-gray-100 bg-[#FAF8F5] space-y-3">
+                <div class="flex justify-between items-center font-bold text-sm">
+                    <span class="text-[#4A403A]">總計金額</span>
+                    <span id="cart-total" class="text-[#8F6565] text-base">NT$ 0</span>
+                </div>
+                <!-- 簡化顧客下單表單 (只需姓名與 IG 大帳) -->
+                <div class="space-y-2 border-t border-gray-200 pt-3 text-xs">
+                    <input type="text" id="buyer-name" placeholder="訂購人姓名 *" class="w-full p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-[#8F6565]" required>
+                    <input type="text" id="buyer-ig" placeholder="Instagram 大帳帳號 (例如: @rz_.market) *" class="w-full p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-[#8F6565]" required>
+                    <textarea id="buyer-note" rows="2" placeholder="備註事項 (選填)" class="w-full p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-[#8F6565]"></textarea>
+                </div>
+
+                <button onclick="submitOrder()" class="w-full btn-main py-3 rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> 送出訂單 (生成明細並導流)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 訂單成功與明細複製跳轉 Modal -->
+    <div id="order-success-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="text-center space-y-1">
+                <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <h3 class="font-bold text-[#4A403A] text-base">🎉 訂單已成功建立並同步！</h3>
+                <p class="text-xs text-gray-500">明細已複製到剪貼簿！請點擊下方按鈕私訊官方客服完成下單。</p>
+            </div>
+
+            <!-- 格式化訂單明細文字框 -->
+            <div class="flex-1 overflow-y-auto">
+                <textarea id="order-summary-text" readonly class="w-full h-44 text-xs p-3 bg-[#FAF8F5] border border-gray-200 rounded-xl focus:outline-none custom-scrollbar font-mono text-gray-700"></textarea>
+            </div>
+
+            <div class="space-y-2 pt-2 border-t border-gray-100">
+                <button onclick="copyOrderSummary()" class="w-full bg-[#8F6565] text-white py-2.5 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-2 hover:bg-[#7D5555]">
+                    <i class="fa-solid fa-copy"></i> 複製訂單明細文字
+                </button>
+
+                <!-- 正確跳轉 official LINE & IG -->
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="https://line.me/R/ti/p/@502nuoch" target="_blank" rel="noopener noreferrer" class="bg-[#06C755] text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs hover:opacity-90">
+                        <i class="fa-brands fa-line text-sm"></i> 開啟官方 LINE
+                    </a>
+                    <a href="https://www.instagram.com/rz_.market?dlrf=ZXBtMjkxcDU1MXI1&utm_source=qr" target="_blank" rel="noopener noreferrer" class="bg-gradient-to-r from-purple-500 via-pink-500 to-yellow-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs hover:opacity-90">
+                        <i class="fa-brands fa-instagram text-sm"></i> 開啟官方 IG
+                    </a>
+                </div>
+
+                <button onclick="closeSuccessModal()" class="w-full py-2 text-xs text-gray-400 hover:text-gray-600">完成，返回購物</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 全功能專屬管理員後台 Modal -->
+    <div id="admin-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-white w-full max-w-2xl rounded-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-3 border-b border-gray-100 bg-[#FAF8F5]">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-bold text-[#4A403A] text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-[#8F6565]"></i> rz_.market 專屬管理後台
+                    </h3>
+                    <button onclick="toggleAdminModal()" class="text-gray-400 hover:text-gray-600 p-1">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                <div class="flex border-b border-[#E8C8C8]/60 text-xs gap-4">
+                    <button id="tab-btn-add" onclick="switchAdminTab('add')" class="py-1.5 font-bold text-[#8F6565] border-b-2 border-[#8F6565]">新增 / 編輯商品</button>
+                    <button id="tab-btn-list" onclick="switchAdminTab('list')" class="py-1.5 font-bold text-gray-400 hover:text-[#8F6565]">商品列表管理</button>
+                    <button id="tab-btn-orders" onclick="switchAdminTab('orders')" class="py-1.5 font-bold text-gray-400 hover:text-[#8F6565]">顧客訂單紀錄</button>
+                </div>
+            </div>
+            
+            <div class="p-4 overflow-y-auto flex-1 custom-scrollbar space-y-5">
+                
+                <!-- TAB 1: 新增與規格編輯區 -->
+                <div id="admin-tab-add" class="space-y-4">
+                    <form id="product-form" onsubmit="saveProductToCloud(event)" class="space-y-4">
+                        <input type="hidden" id="edit-doc-id" value="">
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">商品名稱</label>
+                                <input type="text" id="admin-p-name" required placeholder="例如：韓系絕美洋裝" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-[#8F6565]">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">價格 (NT$)</label>
+                                <input type="number" id="admin-p-price" required placeholder="1280" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-[#8F6565]">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">訂金金額 (選填)</label>
+                                <input type="number" id="admin-p-deposit" placeholder="500" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-[#8F6565]">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">商品簡介 / 描述</label>
+                                <input type="text" id="admin-p-desc" placeholder="材質柔軟透氣，質感優雅" class="w-full text-xs p-2.5 rounded-lg border border-gray-200 focus:outline-none focus:border-[#8F6565]">
+                            </div>
+                        </div>
+
+                        <!-- 照片選擇器與網址輸入 -->
+                        <div class="bg-[#FAF8F5] p-3 rounded-xl border border-[#E8C8C8]/40 space-y-2">
+                            <label class="block text-xs font-bold text-[#8F6565]">商品照片 (選擇圖片檔案或輸入網址)</label>
+                            <input type="file" id="admin-p-files" multiple accept="image/*" onchange="handleImageFiles(this)" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-[#FAF0F0] file:text-[#8F6565] hover:file:bg-[#E8C8C8]">
+                            <textarea id="admin-p-img-urls" rows="2" placeholder="貼上圖片URL (多張用逗號隔開)" class="w-full text-xs p-2 rounded-lg border border-gray-200 focus:outline-none focus:border-[#8F6565]"></textarea>
+                            <div id="image-preview-box" class="flex gap-2 overflow-x-auto no-scrollbar pt-1"></div>
+                        </div>
+
+                        <!-- 雙層規格選項 -->
+                        <div class="bg-white p-3.5 rounded-xl border border-[#E8C8C8] space-y-3 shadow-xs">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-[#8F6565] flex items-center gap-1">
+                                    <i class="fa-solid fa-list-check"></i> 商品規格主題 (例如：顏色、尺寸)
+                                </label>
+                                <button type="button" onclick="addSpecTheme()" class="text-xs text-[#8F6565] font-bold bg-[#FAF0F0] px-2.5 py-1 rounded-full hover:bg-[#E8C8C8]">
+                                    ＋ 新增主題
+                                </button>
+                            </div>
+
+                            <div id="spec-themes-container" class="space-y-3">
+                                <!-- 動態主題區域 -->
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 pt-2">
+                            <button type="button" onclick="resetForm()" class="w-1/3 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold">清空欄位</button>
+                            <button type="submit" id="save-product-btn" class="w-2/3 btn-main py-2.5 rounded-xl text-xs font-bold shadow-xs">
+                                ☁️ 儲存並發布至雲端資料庫
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- TAB 2: 現有商品管理列表 -->
+                <div id="admin-tab-list" class="hidden space-y-3">
+                    <h4 class="text-xs font-bold text-gray-500">已上架雲端商品</h4>
+                    <div id="admin-product-management-list" class="space-y-2">
+                        <!-- 動態商品列表卡片 -->
+                    </div>
+                </div>
+
+                <!-- TAB 3: 顧客訂單紀錄 -->
+                <div id="admin-tab-orders" class="hidden space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-xs font-bold text-gray-500">雲端訂單紀錄</h4>
+                        <button onclick="clearAllOrders()" class="text-xs text-red-500 hover:underline">一鍵清空歷史訂單</button>
+                    </div>
+                    <div id="admin-orders-list" class="space-y-2">
+                        <!-- 動態訂單紀錄 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 專屬密碼解鎖 Modal -->
+    <div id="password-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl text-center space-y-4">
+            <div class="w-12 h-12 bg-[#FAF0F0] text-[#8F6565] rounded-full flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-[#4A403A] text-base">解鎖專屬管理員後台</h3>
+                <p class="text-xs text-gray-400 mt-1">請輸入專屬管理員密碼</p>
+            </div>
+            <input type="password" id="admin-pass-input" placeholder="請輸入密碼" class="w-full text-center text-sm p-3 rounded-xl border border-gray-200 focus:outline-none focus:border-[#8F6565]">
+            <div class="flex gap-2">
+                <button onclick="closePasswordModal()" class="w-1/2 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold">取消</button>
+                <button onclick="verifyPassword()" class="w-1/2 btn-main py-2.5 rounded-xl text-xs font-bold shadow-xs">解鎖進入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase 完整整合與即時監聽邏輯 -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDF6-9Eo-8xPD3KYKsZfz0GMT0Ppbp9cF0",
+            authDomain: "rz-market-19391.firebaseapp.com",
+            projectId: "rz-market-19391",
+            storageBucket: "rz-market-19391.firebasestorage.app",
+            messagingSenderId: "655751698024",
+            appId: "1:655751698024:web:767319601d188b393fcddd",
+            measurementId: "G-HNHV6324Z5"
+        };
+
+        const ADMIN_SECRET = "rz888";
+
+        // Mock 預設資料 (供雲端尚未建立或斷線時直接展示體驗)
+        const mockProducts = [
+            {
+                id: "mock1",
+                name: "法式氣質法式洋裝",
+                price: 1380,
+                deposit: 500,
+                isPublished: true,
+                desc: "超好看的法式剪裁，質感極佳透氣舒適！",
+                images: ["https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500"],
+                specThemes: [
+                    { title: "顏色", options: ["杏色", "燕麥灰", "經典黑"] },
+                    { title: "尺寸", options: ["S", "M"] }
+                ]
+            },
+            {
+                id: "mock2",
+                name: "韓系休閒剪裁上衣",
+                price: 790,
+                deposit: 0,
+                isPublished: true,
+                desc: "百搭修身質感上衣，日常出門隨意搭配都超讚！",
+                images: ["https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=500"],
+                specThemes: [
+                    { title: "顏色", options: ["奶油白", "摩卡灰"] }
+                ]
+            }
+        ];
+
+        let db = null;
+        let isFirebaseConnected = false;
+        let globalProducts = [];
+        let globalOrders = [];
+        let cart = [];
+        let isAdminAuthenticated = false;
+
+        let activeSpecThemes = [
+            { title: '顏色', options: ['黑', '白'] }
+        ];
+        let currentUploadedImages = [];
+        let selectedProductForModal = null;
+        let selectedProductSpecs = {};
+        let currentModalQty = 1;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initFirebase();
+            checkUrlAdminKey();
+            renderSpecThemesEditor();
+        });
+
+        function initFirebase() {
+            try {
+                if (typeof firebase !== 'undefined') {
+                    firebase.initializeApp(firebaseConfig);
+                    db = firebase.firestore();
+                    isFirebaseConnected = true;
+                    listenToProductsCloud();
+                    listenToOrdersCloud();
+                } else {
+                    fallbackToMock();
+                }
+            } catch (e) {
+                console.warn("Firebase 初始化降級：", e);
+                fallbackToMock();
+            }
+        }
+
+        function fallbackToMock() {
+            const badge = document.getElementById('cloud-badge');
+            badge.innerHTML = `<i class="fa-solid fa-cloud text-gray-400"></i> 單機展示模式`;
+            badge.className = "text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium";
+            globalProducts = mockProducts;
+            renderProductsUI(mockProducts);
+            renderAdminProductsUI(mockProducts);
+        }
+
+        function checkUrlAdminKey() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('admin') === ADMIN_SECRET) {
+                isAdminAuthenticated = true;
+                toggleAdminModal();
+            }
+        }
+
+        function listenToProductsCloud() {
+            const badge = document.getElementById('cloud-badge');
+            db.collection("products").onSnapshot((snapshot) => {
+                badge.innerHTML = `<i class="fa-solid fa-cloud text-green-600"></i> 雲端同步已連線`;
+                badge.className = "text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1";
+
+                globalProducts = [];
+                if (snapshot.empty) {
+                    globalProducts = mockProducts;
+                } else {
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        globalProducts.push({ 
+                            id: doc.id, 
+                            isPublished: data.isPublished !== undefined ? data.isPublished : true,
+                            ...data 
+                        });
+                    });
+                }
+                renderProductsUI(globalProducts);
+                renderAdminProductsUI(globalProducts);
+            }, (err) => {
+                console.error("Firestore 連線失敗，啟動備用資料：", err);
+                fallbackToMock();
+            });
+        }
+
+        function listenToOrdersCloud() {
+            if (!db) return;
+            db.collection("orders").onSnapshot((snapshot) => {
+                globalOrders = [];
+                let html = "";
+                if (snapshot.empty) {
+                    html = `<p class="text-center text-xs text-gray-400 py-4">目前尚無訂單紀錄</p>`;
+                } else {
+                    snapshot.forEach((doc) => {
+                        const o = { id: doc.id, ...doc.data() };
+                        globalOrders.push(o);
+                        html += `
+                            <div class="p-3 bg-white rounded-xl border border-gray-100 text-xs space-y-1.5 shadow-xs">
+                                <div class="flex justify-between font-bold text-[#4A403A]">
+                                    <span>訂單編號: #${doc.id.substring(0, 6)}</span>
+                                    <span class="text-[#8F6565]">NT$ ${o.total}</span>
+                                </div>
+                                <div class="text-gray-600">
+                                    <p>買家：<strong>${o.buyerName || '顧客'}</strong> (IG: ${o.buyerIg || '未提供'})</p>
+                                    ${o.items ? o.items.map(i => `<div class="text-gray-500">• ${i.name} (${i.specText || '標準'}) x ${i.qty}</div>`).join('') : ''}
+                                </div>
+                                <div class="flex justify-between text-[10px] text-gray-400 pt-1 border-t border-gray-50">
+                                    <span>${o.createdAt ? new Date(o.createdAt.seconds * 1000).toLocaleString() : '最近'}</span>
+                                    <button onclick="deleteSingleOrder('${doc.id}')" class="text-red-400 hover:underline">刪除紀錄</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                document.getElementById('admin-orders-list').innerHTML = html;
+            });
+        }
+
+        function renderProductsUI(products) {
+            let html = "";
+            // 前台僅展示上架商品 (isPublished === true)
+            const activeProducts = products.filter(p => p.isPublished !== false);
+            
+            if (activeProducts.length === 0) {
+                html = `<div class="col-span-full py-16 text-center text-gray-400 text-xs font-medium">目前尚無上架商品 🛍️</div>`;
+            } else {
+                activeProducts.forEach(p => {
+                    const mainImg = (p.images && p.images.length > 0) ? p.images[0] : 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500';
+                    html += `
+                        <div onclick="openProductDetail('${p.id}')" class="bg-white rounded-2xl overflow-hidden border border-[#E8C8C8]/30 shadow-xs flex flex-col justify-between hover:shadow-md transition cursor-pointer">
+                            <div class="relative">
+                                <img src="${mainImg}" alt="${p.name}" class="w-full h-44 object-cover">
+                                ${p.deposit ? `<span class="absolute top-2 left-2 bg-[#8F6565] text-white text-[9px] px-2 py-0.5 rounded-full">訂金 NT$${p.deposit}</span>` : ''}
+                            </div>
+                            <div class="p-3 flex-1 flex flex-col justify-between space-y-2">
+                                <div>
+                                    <h3 class="font-bold text-xs text-[#4A403A] line-clamp-1">${p.name}</h3>
+                                    <p class="text-[#8F6565] font-extrabold text-sm mt-0.5">NT$ ${p.price}</p>
+                                </div>
+                                <button class="w-full py-1.5 btn-soft rounded-lg text-xs font-bold">
+                                    選購與規格
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            document.getElementById('product-grid').innerHTML = html;
+        }
+
+        function renderAdminProductsUI(products) {
+            let adminListHtml = "";
+            products.forEach(p => {
+                const mainImg = (p.images && p.images.length > 0) ? p.images[0] : 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500';
+                const isOnline = p.isPublished !== false;
+
+                adminListHtml += `
+                    <div class="flex items-center justify-between p-2.5 bg-white rounded-xl border border-gray-100 text-xs">
+                        <div class="flex items-center gap-3">
+                            <img src="${mainImg}" class="w-10 h-10 rounded-lg object-cover">
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <p class="font-bold text-[#4A403A]">${p.name}</p>
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded ${isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'} font-medium">
+                                        ${isOnline ? '銷售中' : '已下架'}
+                                    </span>
+                                </div>
+                                <p class="text-gray-400">NT$ ${p.price} ${p.deposit ? `(訂金 NT$${p.deposit})` : ''}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleProductPublish('${p.id}', ${!isOnline})" class="px-2 py-1 rounded text-xs font-bold ${isOnline ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}">
+                                ${isOnline ? '下架' : '上架'}
+                            </button>
+                            <button onclick="editProduct('${p.id}')" class="text-[#8F6565] hover:bg-[#FAF0F0] px-2 py-1 rounded font-medium">編輯</button>
+                            <button onclick="deleteProduct('${p.id}')" class="text-red-400 hover:text-red-600 px-2 py-1 font-medium">刪除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('admin-product-management-list').innerHTML = adminListHtml;
+        }
+
+        async function toggleProductPublish(id, targetState) {
+            if (!isAdminAuthenticated) return alert("請先驗證密碼！");
+            
+            if (isFirebaseConnected && db) {
+                await db.collection("products").doc(id).update({
+                    isPublished: targetState,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                const p = mockProducts.find(item => item.id === id);
+                if (p) p.isPublished = targetState;
+                renderProductsUI(mockProducts);
+                renderAdminProductsUI(mockProducts);
+            }
+        }
+
+        function renderSpecThemesEditor() {
+            const container = document.getElementById('spec-themes-container');
+            container.innerHTML = "";
+
+            activeSpecThemes.forEach((theme, tIdx) => {
+                const themeBox = document.createElement('div');
+                themeBox.className = "p-3 bg-[#FAF8F5] rounded-xl border border-gray-200 space-y-2";
+                
+                let optionsHtml = theme.options.map((opt, oIdx) => `
+                    <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1">
+                        <input type="text" value="${opt}" onchange="updateSpecOption(${tIdx}, ${oIdx}, this.value)" class="w-16 text-xs text-center border-none focus:outline-none">
+                        <button type="button" onclick="removeSpecOption(${tIdx}, ${oIdx})" class="text-gray-300 hover:text-red-500 text-xs">×</button>
+                    </div>
+                `).join('');
+
+                themeBox.innerHTML = `
+                    <div class="flex items-center justify-between gap-2">
+                        <input type="text" value="${theme.title}" onchange="updateThemeTitle(${tIdx}, this.value)" placeholder="主題名稱 (如: 顏色)" class="font-bold text-xs p-1.5 border border-gray-300 rounded-lg bg-white w-1/2">
+                        <div class="flex items-center gap-1">
+                            <button type="button" onclick="addSpecOption(${tIdx})" class="text-xs text-[#8F6565] bg-[#FAF0F0] hover:bg-[#E8C8C8] px-2 py-1 rounded-lg font-bold">
+                                ＋ 新增選項
+                            </button>
+                            <button type="button" onclick="removeSpecTheme(${tIdx})" class="text-xs text-red-400 hover:text-red-600 px-1.5 py-1">
+                                ✕ 刪除主題
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        ${optionsHtml}
+                    </div>
+                `;
+                container.appendChild(themeBox);
+            });
+        }
+
+        function addSpecTheme() {
+            activeSpecThemes.push({ title: '新主題', options: ['選項1'] });
+            renderSpecThemesEditor();
+        }
+        function removeSpecTheme(tIdx) {
+            activeSpecThemes.splice(tIdx, 1);
+            renderSpecThemesEditor();
+        }
+        function updateThemeTitle(tIdx, val) { activeSpecThemes[tIdx].title = val; }
+        function addSpecOption(tIdx) { activeSpecThemes[tIdx].options.push('新選項'); renderSpecThemesEditor(); }
+        function updateSpecOption(tIdx, oIdx, val) { activeSpecThemes[tIdx].options[oIdx] = val; }
+        function removeSpecOption(tIdx, oIdx) { activeSpecThemes[tIdx].options.splice(oIdx, 1); renderSpecThemesEditor(); }
+
+        function handleImageFiles(input) {
+            const files = Array.from(input.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentUploadedImages.push(e.target.result);
+                    renderImagePreviews();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        function renderImagePreviews() {
+            const box = document.getElementById('image-preview-box');
+            box.innerHTML = currentUploadedImages.map((src, i) => `
+                <div class="relative w-12 h-12 flex-shrink-0">
+                    <img src="${src}" class="w-full h-full object-cover rounded-lg">
+                    <button type="button" onclick="removeImagePreview(${i})" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center">×</button>
+                </div>
+            `).join('');
+        }
+        function removeImagePreview(i) {
+            currentUploadedImages.splice(i, 1);
+            renderImagePreviews();
+        }
+
+        async function saveProductToCloud(e) {
+            e.preventDefault();
+            if (!isAdminAuthenticated) return alert("請先驗證專屬密碼！");
+
+            const docId = document.getElementById('edit-doc-id').value;
+            const btn = document.getElementById('save-product-btn');
+            btn.disabled = true;
+            btn.innerText = "連線寫入雲端中...";
+
+            const textUrls = document.getElementById('admin-p-img-urls').value.split(',').map(s => s.trim()).filter(Boolean);
+            const allImages = [...currentUploadedImages, ...textUrls];
+
+            const productData = {
+                name: document.getElementById('admin-p-name').value,
+                price: Number(document.getElementById('admin-p-price').value),
+                deposit: Number(document.getElementById('admin-p-deposit').value) || 0,
+                desc: document.getElementById('admin-p-desc').value,
+                isPublished: true,
+                images: allImages.length > 0 ? allImages : ['https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500'],
+                specThemes: activeSpecThemes,
+                updatedAt: isFirebaseConnected ? firebase.firestore.FieldValue.serverTimestamp() : new Date()
+            };
+
+            try {
+                if (isFirebaseConnected && db) {
+                    if (docId) {
+                        await db.collection("products").doc(docId).update(productData);
+                    } else {
+                        productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                        await db.collection("products").add(productData);
+                    }
+                    alert("✨ 商品成功儲存至雲端！");
+                } else {
+                    if (docId) {
+                        const idx = mockProducts.findIndex(p => p.id === docId);
+                        if (idx !== -1) mockProducts[idx] = { id: docId, ...productData };
+                    } else {
+                        mockProducts.push({ id: 'mock_' + Date.now(), ...productData });
+                    }
+                    renderProductsUI(mockProducts);
+                    renderAdminProductsUI(mockProducts);
+                    alert("✨ 已發布商品！");
+                }
+                resetForm();
+                switchAdminTab('list');
+            } catch (err) {
+                alert("儲存發生錯誤：" + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "☁️ 儲存並發布至雲端資料庫";
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('product-form').reset();
+            document.getElementById('edit-doc-id').value = "";
+            currentUploadedImages = [];
+            activeSpecThemes = [{ title: '顏色', options: ['黑', '白'] }];
+            renderImagePreviews();
+            renderSpecThemesEditor();
+        }
+
+        function editProduct(id) {
+            const p = globalProducts.find(item => item.id === id);
+            if (!p) return;
+            document.getElementById('edit-doc-id').value = p.id;
+            document.getElementById('admin-p-name').value = p.name;
+            document.getElementById('admin-p-price').value = p.price;
+            document.getElementById('admin-p-deposit').value = p.deposit || "";
+            document.getElementById('admin-p-desc').value = p.desc || "";
+            
+            currentUploadedImages = p.images || [];
+            renderImagePreviews();
+            activeSpecThemes = p.specThemes || [{ title: '顏色', options: ['黑', '白'] }];
+            renderSpecThemesEditor();
+            switchAdminTab('add');
+        }
+
+        async function deleteProduct(id) {
+            if (!isAdminAuthenticated) return alert("請先驗證密碼！");
+            if (confirm("確定下架此商品嗎？")) {
+                if (isFirebaseConnected && db) {
+                    await db.collection("products").doc(id).delete();
+                } else {
+                    const idx = mockProducts.findIndex(p => p.id === id);
+                    if (idx !== -1) mockProducts.splice(idx, 1);
+                    renderProductsUI(mockProducts);
+                    renderAdminProductsUI(mockProducts);
+                }
+            }
+        }
+
+        function openProductDetail(id) {
+            selectedProductForModal = globalProducts.find(p => p.id === id);
+            if (!selectedProductForModal) return;
+
+            selectedProductSpecs = {};
+            currentModalQty = 1;
+            document.getElementById('modal-qty').innerText = "1";
+
+            document.getElementById('modal-p-name').innerText = selectedProductForModal.name;
+            document.getElementById('modal-p-price').innerText = `NT$ ${selectedProductForModal.price}`;
+            document.getElementById('modal-p-deposit').innerText = selectedProductForModal.deposit ? `訂金可先付 NT$ ${selectedProductForModal.deposit}` : '';
+            document.getElementById('modal-p-desc').innerText = selectedProductForModal.desc || '';
+
+            const imgs = selectedProductForModal.images || ['https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500'];
+            document.getElementById('modal-product-images').innerHTML = imgs.map(src => `
+                <img src="${src}" class="w-32 h-32 object-cover rounded-xl flex-shrink-0 border border-gray-100">
+            `).join('');
+
+            const specContainer = document.getElementById('modal-spec-container');
+            specContainer.innerHTML = "";
+
+            if (selectedProductForModal.specThemes && selectedProductForModal.specThemes.length > 0) {
+                selectedProductForModal.specThemes.forEach((theme, tIdx) => {
+                    if (theme.options && theme.options.length > 0) {
+                        selectedProductSpecs[theme.title] = theme.options[0];
+
+                        const themeDiv = document.createElement('div');
+                        themeDiv.className = "space-y-1.5";
+                        themeDiv.innerHTML = `
+                            <label class="text-xs font-bold text-gray-700">${theme.title}</label>
+                            <div class="flex flex-wrap gap-2">
+                                ${theme.options.map((opt, oIdx) => `
+                                    <button onclick="selectSpecOption('${theme.title}', '${opt}', ${tIdx}, this)" class="spec-btn-${tIdx} px-3 py-1 text-xs rounded-lg border border-gray-200 ${oIdx === 0 ? 'bg-[#8F6565] text-white border-[#8F6565]' : 'bg-white text-gray-700'} font-medium">
+                                        ${opt}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        `;
+                        specContainer.appendChild(themeDiv);
+                    }
+                });
+            }
+
+            document.getElementById('product-detail-modal').classList.remove('hidden');
+        }
+
+        function selectSpecOption(themeTitle, optionVal, tIdx, btnEl) {
+            selectedProductSpecs[themeTitle] = optionVal;
+            document.querySelectorAll(`.spec-btn-${tIdx}`).forEach(b => {
+                b.className = `spec-btn-${tIdx} px-3 py-1 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 font-medium`;
+            });
+            btnEl.className = `spec-btn-${tIdx} px-3 py-1 text-xs rounded-lg border border-[#8F6565] bg-[#8F6565] text-white font-medium`;
+        }
+
+        function adjustQuantity(delta) {
+            currentModalQty = Math.max(1, currentModalQty + delta);
+            document.getElementById('modal-qty').innerText = currentModalQty;
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-detail-modal').classList.add('hidden');
+        }
+
+        function confirmAddToCart() {
+            if (!selectedProductForModal) return;
+            const specStr = Object.entries(selectedProductSpecs).map(([k, v]) => `${k}:${v}`).join(' / ');
+            
+            cart.push({
+                id: selectedProductForModal.id,
+                name: selectedProductForModal.name,
+                price: selectedProductForModal.price,
+                image: selectedProductForModal.images ? selectedProductForModal.images[0] : '',
+                qty: currentModalQty,
+                specText: specStr
+            });
+
+            updateCartUI();
+            closeProductModal();
+        }
+
+        function updateCartUI() {
+            document.getElementById('cart-count').innerText = cart.reduce((sum, item) => sum + item.qty, 0);
+            const container = document.getElementById('cart-items');
+            
+            if (cart.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-400 text-xs py-10">購物車目前是空的唷 🛍️</p>`;
+                document.getElementById('cart-total').innerText = `NT$ 0`;
+                return;
+            }
+
+            let total = 0;
+            container.innerHTML = cart.map((item, idx) => {
+                total += item.price * item.qty;
+                return `
+                    <div class="flex items-center justify-between bg-[#FAF8F5] p-2.5 rounded-xl border border-gray-100 text-xs">
+                        <div class="flex items-center gap-3">
+                            <img src="${item.image}" class="w-10 h-10 rounded-lg object-cover">
+                            <div>
+                                <p class="font-bold text-[#4A403A]">${item.name}</p>
+                                <p class="text-gray-400 text-[10px]">${item.specText || '標準'}</p>
+                                <p class="text-[#8F6565] font-semibold">NT$ ${item.price} x ${item.qty}</p>
+                            </div>
+                        </div>
+                        <button onclick="removeFromCart(${idx})" class="text-gray-300 hover:text-red-500">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('cart-total').innerText = `NT$ ${total}`;
+        }
+
+        function removeFromCart(idx) {
+            cart.splice(idx, 1);
+            updateCartUI();
+        }
+
+        async function submitOrder() {
+            if (cart.length === 0) return alert("購物車目前空的喔！");
+            
+            const name = document.getElementById('buyer-name').value.trim();
+            const igAccount = document.getElementById('buyer-ig').value.trim();
+            const note = document.getElementById('buyer-note').value.trim();
+
+            if (!name || !igAccount) {
+                return alert("請完整填寫姓名與 IG 大帳帳號喔！");
+            }
+
+            const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const orderId = 'RZ' + Date.now().toString().slice(-6);
+
+            let summaryText = `🛍️ rz_.market 訂單明細\n`;
+            summaryText += `------------------\n`;
+            summaryText += `訂單編號：#${orderId}\n`;
+            summaryText += `訂購人：${name}\n`;
+            summaryText += `IG 大帳：${igAccount}\n`;
+            if (note) summaryText += `備註：${note}\n`;
+            summaryText += `------------------\n`;
+            summaryText += `商品明細：\n`;
+            cart.forEach((item, index) => {
+                summaryText += `${index + 1}. ${item.name} (${item.specText || '標準'}) x${item.qty} - NT$${item.price * item.qty}\n`;
+            });
+            summaryText += `------------------\n`;
+            summaryText += `總金額：NT$ ${total}\n`;
+            summaryText += `------------------\n`;
+            summaryText += `請將此明細私訊傳給我們完成下單！✨`;
+
+            try {
+                if (isFirebaseConnected && db) {
+                    await db.collection("orders").add({
+                        orderId: orderId,
+                        buyerName: name,
+                        buyerIg: igAccount,
+                        buyerNote: note,
+                        items: cart,
+                        total: total,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+
+                document.getElementById('order-summary-text').value = summaryText;
+                
+                // 自動複製到剪貼簿
+                copyOrderSummaryText(summaryText);
+
+                cart = [];
+                updateCartUI();
+                toggleCartModal();
+                document.getElementById('order-success-modal').classList.remove('hidden');
+            } catch (err) {
+                alert("下單錯誤：" + err.message);
+            }
+        }
+
+        function copyOrderSummaryText(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text);
+            } else {
+                const copyText = document.getElementById("order-summary-text");
+                copyText.select();
+                document.execCommand('copy');
+            }
+        }
+
+        function copyOrderSummary() {
+            const copyText = document.getElementById("order-summary-text");
+            copyOrderSummaryText(copyText.value);
+            alert("📋 訂單明細已成功複製到剪貼簿！點擊下方按鈕即可跳轉開啟 LINE 或 IG 私訊下單！");
+        }
+
+        function closeSuccessModal() {
+            document.getElementById('order-success-modal').classList.add('hidden');
+        }
+
+        async function clearAllOrders() {
+            if (!isAdminAuthenticated) return alert("請先驗證密碼！");
+            if (confirm("確定要清空所有紀錄嗎？") && isFirebaseConnected && db) {
+                const snapshot = await db.collection("orders").get();
+                snapshot.forEach(doc => doc.ref.delete());
+            }
+        }
+
+        async function deleteSingleOrder(id) {
+            if (!isAdminAuthenticated) return alert("請先驗證密碼！");
+            if (isFirebaseConnected && db) {
+                await db.collection("orders").doc(id).delete();
+            }
+        }
+
+        function handleAdminAccess() {
+            if (isAdminAuthenticated) {
+                toggleAdminModal();
+            } else {
+                document.getElementById('password-modal').classList.remove('hidden');
+            }
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').classList.add('hidden');
+            document.getElementById('admin-pass-input').value = "";
+        }
+
+        function verifyPassword() {
+            const input = document.getElementById('admin-pass-input').value;
+            if (input === ADMIN_SECRET) {
+                isAdminAuthenticated = true;
+                closePasswordModal();
+                toggleAdminModal();
+            } else {
+                alert("❌ 密碼錯誤！無法進入專屬後台。");
+            }
+        }
+
+        function toggleCartModal() {
+            document.getElementById('cart-modal').classList.toggle('hidden');
+        }
+        function toggleAdminModal() {
+            document.getElementById('admin-modal').classList.toggle('hidden');
+        }
+        function switchAdminTab(tab) {
+            document.getElementById('admin-tab-add').classList.add('hidden');
+            document.getElementById('admin-tab-list').classList.add('hidden');
+            document.getElementById('admin-tab-orders').classList.add('hidden');
+            
+            document.getElementById('tab-btn-add').className = "py-1.5 font-bold text-gray-400 hover:text-[#8F6565]";
+            document.getElementById('tab-btn-list').className = "py-1.5 font-bold text-gray-400 hover:text-[#8F6565]";
+            document.getElementById('tab-btn-orders').className = "py-1.5 font-bold text-gray-400 hover:text-[#8F6565]";
+
+            document.getElementById(`admin-tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-btn-${tab}`).className = "py-1.5 font-bold text-[#8F6565] border-b-2 border-[#8F6565]";
+        }
+    </script>
+</body>
+</html>
